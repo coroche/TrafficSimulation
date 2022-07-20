@@ -1,30 +1,60 @@
 import roadsGraph, vehicle
-import random
+import random, math
 
 
-def chooseNewRoad(car,intersection,roads):
-			roadOptions=[road for road in roadsGraph.roadsFromPoint(intersection,roads) if road!=car.road]
-			if len(roadOptions)==0:
-				return False
-			else:
-				car.road=roadOptions[random.randint(0,len(roadOptions)-1)]
-				if intersection==car.road.pointA:
-					car.position=abs(car.position)%1
-					car.direction=vehicle.direction.AtoB
-				else:
-					car.position=1-abs(car.position)%1
-					car.direction=vehicle.direction.BtoA
-				car.stopped=False
-			return True
+def chooseNextRoad(car,roads,intersection=None):
+
+	if not intersection:
+		if car.direction == vehicle.direction.AtoB:
+			intersection =car.road.pointB
+		elif car.direction == vehicle.direction.BtoA:
+			intersection =car.road.pointA
+
+	roadOptions=[road for road in roadsGraph.roadsFromPoint(intersection,roads) if road!=car.road]
+
+	if len(roadOptions)==0:
+		car.nextRoad=None
+		return False
+	else:
+		rand = random.randint(0,len(roadOptions)-1)
+		car.nextRoad = roadOptions[rand]
+		if car.direction == vehicle.direction.AtoB:
+			car.roadAdj = car.road.pointBAdj[rand]
+		else:
+			car.roadAdj = car.road.pointAAdj[rand]
+
+		
+	return True
+
+def changeRoads(car,roads,intersection,cars):
+	if car.nextRoad:
+		car.road = car.nextRoad
+		if intersection==car.road.pointA:
+			#car.position=abs(car.position)%1
+			car.position = 0
+			car.direction=vehicle.direction.AtoB
+			intersection=car.road.pointB
+		else:
+			#car.position=1-abs(car.position)%1
+			car.position=1
+			car.direction=vehicle.direction.BtoA
+			intersection=car.road.pointA
+		car.stopped=False
+		chooseNextRoad(car,roads,intersection)
+	else:
+		cars.remove(car)
 
 
-def step(cars, dt, stopLine, bumper, roads):
+def step(cars, dt, stopLine, bumper, roads, roadWidth):
 	for car in list(cars):
 		
 		ds=car.speed*dt
 		car.position += car.direction.value*ds/car.road.length
 		stoppingDistance=car.speed**2/(2*car.deceleration)
 		distanceToEnd, intersection, signal = vehicle.distanceToGo(car)
+		if car.direction == vehicle.direction.AtoB:
+			distanceToEnd += car.roadAdj
+
 		
 		otherCars=[(otherCar.position-car.position)*car.direction.value for otherCar in cars if otherCar!=car and otherCar.road==car.road and otherCar.direction==car.direction]		
 		otherCarsInFront=[otherCar for otherCar in otherCars if otherCar>0]
@@ -48,7 +78,7 @@ def step(cars, dt, stopLine, bumper, roads):
 			stayPut=False
 			for otherCar in CarsToWatch:
 				otherCarDistanceToEnd, _, _ = vehicle.distanceToGo(otherCar)
-				if otherCarDistanceToEnd/otherCar.speed < 3:
+				if otherCar.speed!=0 and otherCarDistanceToEnd/otherCar.speed < 3:
 					stayPut=True
 			if not stayPut:
 				vehicle.accelerate(car,dt)
@@ -58,9 +88,8 @@ def step(cars, dt, stopLine, bumper, roads):
 			vehicle.accelerate(car,dt)
 		
 		#end of the road
-		if car.position>1 or car.position<0:
-			newRoad=chooseNewRoad(car,intersection,roads)
-			if not newRoad:
-				cars.remove(car)
+		if car.position>1 - car.roadAdj or car.position<0 - car.roadAdj:
+			changeRoads(car,roads,intersection,cars)
+
 	return cars
 

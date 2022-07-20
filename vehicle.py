@@ -1,7 +1,7 @@
 from enum import Enum
 
 class vehicle:
-  def __init__(self, road, position, direction, speed, acceleration, deceleration, stopped=False, ident=None):
+  def __init__(self, road, position, direction, speed, acceleration, deceleration, stopped=False):
     self.road = road
     self.position = position
     self.direction = direction
@@ -9,7 +9,8 @@ class vehicle:
     self.acceleration = acceleration
     self.deceleration = deceleration
     self.stopped = stopped
-    self.ident = ident
+    self.nextRoad = None
+    self.roadAdj = None
 
 class direction(Enum):
     AtoB = 1
